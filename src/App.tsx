@@ -29,13 +29,21 @@ function App() {
 
 
   const [difficulty, setDifficulty] = useState<number>(45)
-  const [timer, setTimer] = useState(difficulty)
+  const [timer, setTimer] = useState(0)
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      if(timer){
+      if(timer > 0 ){
         setTimer(prevTimer => prevTimer - 1)
         console.log("use effect")
+      }
+
+      if(gameOver){
+        setTimer(0)
+      }
+
+      if(timer === 0){
+        clearTimeout(timerId)
       }
     }, 1000)
     return () => clearTimeout(timerId)
@@ -48,12 +56,17 @@ function App() {
 
   const gameOver = gameWon || gameLost
 
+  function startTimer(){
+    setTimer(difficulty)
+  }
+
   /**
    * @abstract will change the state of die state, to the opposite of the specific dices prior isHeld boolean
    * @param id the id created by nanoid
    */
   const holdDice = (id: string) => {
     // need to start time if not already started
+    if(!rollHistory.currentRoll && !timer) startTimer()
     setDie(prevDie => {
       return prevDie.map(die => {
         return die.id === id? {...die, isHeld:!die.isHeld} : die;
@@ -67,7 +80,6 @@ function App() {
    **/
   function generateNewDice(): DiceState {
       const newDie = Array(10).fill(0).map(() => { return { isHeld: false, number: getRandomRoll(), id: nanoid()} satisfies IndividualDiceState }) as DiceState;
-      console.log("new die ", newDie.join(" "))
       return newDie
   }
 
@@ -85,6 +97,10 @@ function App() {
    */
   const rollDice = () => {
     // need to start timer if not started already
+    
+    if(rollHistory.currentRoll === 0 && !timer) startTimer()  // start timer if not already started 
+
+
     if(!gameOver) {
       setRollHistory(prevRollHistory => ({...prevRollHistory, rollCount: prevRollHistory.rollCount + 1} satisfies RollCount )    )
       
@@ -117,7 +133,6 @@ function App() {
       {_die.number}
     </Dice>
   ))
-  console.log(displayDice)
   return (
     <main >
       <Difficulty gameOver={gameOver} handleDifficulty={handleDifficulty} difficulty={difficulty} />
