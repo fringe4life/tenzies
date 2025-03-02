@@ -3,5 +3,5 @@
 @theme {
 	--font-display: "Inter", sans-serif;
 
-	/* --drop-shadow-green: drop-shadow(0px 100px 0 #00ff00); */
+	--breakpoint-xs: 25rem;
 }

@@ -30,7 +30,7 @@ export default function Dice({isHeld, onClick, children}: DiceProps){
         default:
             imgSrc = dice1
     }
-    return <button aria-pressed={isHeld} className={clsx({"text-center border m-2.5 rounded-sm font-bold w-10 h-10": true, "bg-green-500": isHeld})} aria-label={`Clicking this button will hold the ${children} dice number`} onClick={onClick} type="button">
+    return <button aria-pressed={isHeld} className={clsx({"cursor-pointer hover:scale-110   active:scale-90 transition-transform duration-150  text-center border m-2.5 rounded-sm font-bold w-10 h-10": true, "bg-green-500": isHeld})} aria-label={`Clicking this button will hold the ${children} dice number`} onClick={onClick} type="button">
             <div className="relative"><img className={clsx({"mix-blend-multiply after:w-full after:h-full after:absolute after:bg-green-500": isHeld})}src={imgSrc} alt={`dice number: ${children as string}`} /></div>
         </button>
 }

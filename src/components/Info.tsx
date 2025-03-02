@@ -1,15 +1,10 @@
 
-type InfoProps = {
-    currentRoll: number;
-    timeRemaining: number;
-}
 
-export default function Info({currentRoll, timeRemaining}: InfoProps){
+export default function Info({children}: React.ComponentPropsWithoutRef<"div">){
     return (
-        <aside>
-            <p aria-live="off">Current Roll: {currentRoll === Number.POSITIVE_INFINITY ? 0 : currentRoll}</p>
-            <p aria-live="polite">Time Left: {timeRemaining} seconds</p>
-        </aside>
+        <div className="flex justify-between my-4">
+            {children}
+        </div>
     )
 
 }

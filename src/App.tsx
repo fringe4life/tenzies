@@ -1,12 +1,14 @@
 
 import { useEffect, useState } from 'react'
-import './App.css'
+
 import Dice from './components/Dice'
 import Button from './components/Button'
 import { getRandomRoll, type DieRoll } from './util'
 import { nanoid } from 'nanoid'
 import Difficulty from './components/Difficulty'
 import Info from './components/Info'
+import RollInfo from './components/RollInfo'
+import clsx from 'clsx'
 
 type IndividualDiceState = {
   number: DieRoll,
@@ -29,34 +31,52 @@ function App() {
 
 
   const [difficulty, setDifficulty] = useState<number>(45)
-  const [timer, setTimer] = useState(0)
+  const [timer, setTimer] = useState<number>(1)
 
+  /**
+   * @abstract tracks whether player has started
+   */
+  const [playingGame, setplayingGame] = useState<boolean>(false)
+
+  /**
+   * @abstract determines if all die are held and that the die are all the same number
+   */
+  const gameWon = die.length > 0 && die.every(die => die.isHeld) && die.every(_die => _die.number === die[0].number)
+  /**
+   * @abstract determines if player ran out of time
+   */
+  const gameLost = timer === 0 
+  /**
+   * @abstract determines if game is over
+   */
+  const gameOver = gameWon || gameLost;
+
+  /**
+   * @abstract this useEffect is used to interact with the setTimeout browser API
+   * to safely interact with this non react API
+   */
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      if(timer > 0 ){
+      if(!gameOver && playingGame){
         setTimer(prevTimer => prevTimer - 1)
-        console.log("use effect")
-      }
-
-      if(gameOver){
-        setTimer(0)
-      }
-
-      if(timer === 0){
+      } else if(timer === 0 || gameOver){
         clearTimeout(timerId)
+        console.log("cleanup from useEffect")
+        cleanupGame()
+      
       }
     }, 1000)
     return () => clearTimeout(timerId)
-  }, [timer])
+  }, [timer, gameOver, playingGame])
 
 
-  const gameWon = die.length > 0 && die.every(die => die.isHeld) && die.every(_die => _die.number === die[0].number)
-  const gameLost = timer === 0
-
-
-  const gameOver = gameWon || gameLost
-
+  
+  /**
+   * @abstract starts the timer when player starts
+   * holding dice or rolling new dice
+   */
   function startTimer(){
+    setplayingGame(true)
     setTimer(difficulty)
   }
 
@@ -66,12 +86,14 @@ function App() {
    */
   const holdDice = (id: string) => {
     // need to start time if not already started
-    if(!rollHistory.currentRoll && !timer) startTimer()
+    if(!playingGame) startTimer()
     setDie(prevDie => {
       return prevDie.map(die => {
         return die.id === id? {...die, isHeld:!die.isHeld} : die;
       })
     })
+
+    
   }
 
   /**
@@ -96,50 +118,71 @@ function App() {
    * @returns void
    */
   const rollDice = () => {
-    // need to start timer if not started already
-    
-    if(rollHistory.currentRoll === 0 && !timer) startTimer()  // start timer if not already started 
+    if(!playingGame) startTimer()
 
 
     if(!gameOver) {
-      setRollHistory(prevRollHistory => ({...prevRollHistory, rollCount: prevRollHistory.rollCount + 1} satisfies RollCount )    )
-      
+      setRollHistory(prevRollHistory => ({...prevRollHistory, currentRoll: prevRollHistory.currentRoll + 1} satisfies RollCount )    )
       setDie(prevDie => {
         return prevDie.map((_die) => {
           return {
             ..._die,
             number: _die.isHeld ? _die.number : getRandomRoll(),
-          } as IndividualDiceState
+          } satisfies IndividualDiceState
         })
       })
     } else {
-      // inform user of or defeat
-      console.log("Game Over! You rolled a total of ", rollHistory.rollCount, " times and got ", rollHistory.currentRoll, " correct.")
-      
-      setTimer(difficulty)
-      setRollHistory(prevRollHistory => {
-        if(prevRollHistory.currentRoll < prevRollHistory.rollCount ){
-          return {...prevRollHistory, currentRoll: prevRollHistory.rollCount } satisfies RollCount
-        } 
-        return {...prevRollHistory, currentRoll: 0 }
-      })
       setDie(generateNewDice())
     }
     
   }
-
+  /**
+   * @abstract the variable that is an array of Dice
+   */
   const displayDice = die.map((_die) => (
       <Dice key={_die.id} isHeld={_die.isHeld} onClick={() => holdDice(_die.id)}>
       {_die.number}
     </Dice>
   ))
+
+  /**
+   * @abstract sets playingGame to false
+   * and updates rollHistory
+   */
+  function cleanupGame(){
+    if(gameWon && playingGame){
+      setRollHistory(
+							(prevRollHistory) =>
+								({
+									rollCount: Math.min(
+										prevRollHistory.rollCount,
+										rollHistory.currentRoll,
+									),
+                  currentRoll: 0
+								}) satisfies RollCount,
+						)
+    } else if(gameLost && playingGame) {
+      setRollHistory(prevRollHistory => ({
+          ...prevRollHistory,
+          currentRoll: 0
+      }))
+    }
+
+    setplayingGame(false)
+  }
+
   return (
     <main >
-      <Difficulty gameOver={gameOver} handleDifficulty={handleDifficulty} difficulty={difficulty} />
-      <Info timeRemaining={timer} currentRoll={rollHistory.currentRoll} />
-      <section className='grid grid-cols-5'>
+      <Difficulty gameOver={playingGame} handleDifficulty={handleDifficulty} difficulty={difficulty} />
+      <Info >
+        <RollInfo>Current Roll: {rollHistory.currentRoll === Number.POSITIVE_INFINITY ? 0 : rollHistory.currentRoll}</RollInfo>
+        <p aria-live="polite">{playingGame ? `Time Left: ${timer} seconds` : "Begin Game"}</p> 
+      </Info>
+      { gameOver && <RollInfo className={clsx({"text-center mb-4": true, "text-green-600":gameWon, "text-red-600": gameLost})}>{gameWon ? "Congratulations!" : "You ran out of time try again!"}</RollInfo>}
+      {rollHistory.rollCount < Number.POSITIVE_INFINITY && <RollInfo className='text-center'>Best Roll: {rollHistory.rollCount}</RollInfo>}
+      <section className='grid grid-cols-5 justify-items-center'>
         {die ? displayDice : null}
-        <Button className='px-8 justify-self-center col-span-full text-white rounded-sm mt-6 bg-indigo-700'  onClick={rollDice} >Roll</Button>
+        <Button className='px-8 justify-self-center col-span-full text-white rounded-sm mt-6 bg-indigo-700'  onClick={rollDice} >{gameOver ? 'New Game' : "Roll"}</Button>
       </section>
     </main>
   )
